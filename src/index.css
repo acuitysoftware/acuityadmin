@@ -1,0 +1,52 @@
+@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&family=Inter:wght@400;500;600&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-primary:   #062B6E;
+    --color-secondary: #01A9FB;
+    --color-accent:    #FD6301;
+    --color-gold:      #FCAE01;
+    --color-surface:   #F4F8FC;
+    --color-body:      #0B1730;
+    /* Matches the header's fixed height (68px) — update here if header height changes */
+    --header-height: 68px;
+  }
+
+  @media (min-width: 1536px) {
+    :root {
+      --header-height: 88px;
+    }
+  }
+
+  body {
+    /* clip stops horizontal scroll without creating a scroll container,
+       so position:sticky on the header keeps working */
+    overflow-x: clip;
+  }
+
+  html {
+    font-family: "Inter", sans-serif;
+    color: var(--color-body);
+    background-color: #ffffff;
+    scroll-behavior: smooth;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: "Manrope", sans-serif;
+    color: var(--color-primary);
+    line-height: 1.2;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  button {
+    font-family: "Inter", sans-serif;
+  }
+}
