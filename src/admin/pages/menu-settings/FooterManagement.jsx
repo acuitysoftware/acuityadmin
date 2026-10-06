@@ -43,8 +43,24 @@ import {
 import ConfirmModal from "../components/ConfirmModal";
 
 const getList = (response) => {
-  if (Array.isArray(response)) return response;
-  return Array.isArray(response?.data) ? response.data : [];
+  const candidate = response && typeof response === "object" ? response : null;
+  const possibleLists = [
+    candidate,
+    candidate?.data,
+    candidate?.list,
+    candidate?.items,
+    candidate?.result,
+    candidate?.records,
+    candidate?.rows,
+    candidate?.footer_menus,
+    candidate?.footerLinks,
+  ];
+
+  for (const item of possibleLists) {
+    if (Array.isArray(item)) return item;
+  }
+
+  return [];
 };
 
 const isActive = (status) => status === 1 || status === "1" || status === true;
@@ -101,6 +117,12 @@ export default function FooterManagement() {
   }, [links, search]);
 
   const pageCount = Math.max(1, Math.ceil(filteredLinks.length / pageSize));
+  useEffect(() => {
+    if (page > pageCount) {
+      setPage(pageCount);
+    }
+  }, [page, pageCount]);
+
   const pageLinks = filteredLinks.slice((page - 1) * pageSize, page * pageSize);
   const firstItem = filteredLinks.length ? (page - 1) * pageSize + 1 : 0;
   const lastItem = Math.min(page * pageSize, filteredLinks.length);
@@ -159,11 +181,11 @@ export default function FooterManagement() {
 
     try {
       if (form.id) {
-        await updateFooterMenu(token, { id: String(form.id), ...payload });
-        toast.success("Footer link updated successfully");
+        const response = await updateFooterMenu(token, { id: String(form.id), ...payload });
+        toast.success(response?.message || "Footer link updated successfully");
       } else {
-        await createFooterMenu(token, payload);
-        toast.success("Footer link created successfully");
+        const response = await createFooterMenu(token, payload);
+        toast.success(response?.message || "Footer link created successfully");
       }
       setEditLink(null);
       await fetchLinks(search);
@@ -184,8 +206,8 @@ export default function FooterManagement() {
     );
 
     try {
-      await changeFooterMenuStatus(token, { id: link.id, status: nextStatus });
-      toast.success("Footer link status updated");
+      const response = await changeFooterMenuStatus(token, { id: link.id, status: nextStatus });
+      toast.success(response?.message || "Footer link status updated");
     } catch (error) {
       setLinks(previousLinks);
       toast.error(getErrorMessage(error));
@@ -196,8 +218,8 @@ export default function FooterManagement() {
     if (!selectedIds.length) return;
     setDeleting(true);
     try {
-      await deleteFooterMenu(token, { ids: selectedIds });
-      toast.success("Footer link(s) deleted successfully");
+      const response = await deleteFooterMenu(token, { ids: selectedIds });
+      toast.success(response?.message || "Footer link(s) deleted successfully");
       setConfirmDelete(false);
       await fetchLinks(search);
     } catch (error) {
@@ -222,11 +244,11 @@ export default function FooterManagement() {
     setLinks(reorderedLinks);
 
     try {
-      await updateFooterMenuRank(token, {
+      const response = await updateFooterMenuRank(token, {
         id: active.id,
         rank: reorderedLinks[toIndex].rank,
       });
-      toast.success("Footer link rank updated");
+      toast.success(response?.message || "Footer link rank updated");
     } catch (error) {
       setLinks(previousLinks);
       toast.error(getErrorMessage(error));

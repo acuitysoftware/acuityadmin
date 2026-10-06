@@ -8,7 +8,9 @@ export async function getFooterMenusList(token, data = {}) {
         Authorization: `Bearer ${token}`,
       },
     });
-    return response.data;
+    const responseData = response.data;
+    if (responseData?.status === false) throw new Error(responseData.message || "Something went wrong");
+    return responseData;
   } catch (error) {
     console.error("Get Footer Menus List API Error:", error.response?.data ?? error.message);
     throw error;
@@ -23,7 +25,9 @@ export async function createFooterMenu(token, data) {
         Authorization: `Bearer ${token}`,
       },
     });
-    return response.data;
+    const responseData = response.data;
+    if (responseData?.status === false) throw new Error(responseData.message || "Something went wrong");
+    return responseData;
   } catch (error) {
     console.error("Create Footer Menu API Error:", error.response?.data ?? error.message);
     throw error;
@@ -38,7 +42,9 @@ export async function getFooterMenuView(token, data) {
         Authorization: `Bearer ${token}`,
       },
     });
-    return response.data;
+    const responseData = response.data;
+    if (responseData?.status === false) throw new Error(responseData.message || "Something went wrong");
+    return responseData;
   } catch (error) {
     console.error("View Footer Menu API Error:", error.response?.data ?? error.message);
     throw error;
@@ -53,7 +59,9 @@ export async function updateFooterMenu(token, data) {
         Authorization: `Bearer ${token}`,
       },
     });
-    return response.data;
+    const responseData = response.data;
+    if (responseData?.status === false) throw new Error(responseData.message || "Something went wrong");
+    return responseData;
   } catch (error) {
     console.error("Update Footer Menu API Error:", error.response?.data ?? error.message);
     throw error;
@@ -68,7 +76,9 @@ export async function deleteFooterMenu(token, data) {
         Authorization: `Bearer ${token}`,
       },
     });
-    return response.data;
+    const responseData = response.data;
+    if (responseData?.status === false) throw new Error(responseData.message || "Something went wrong");
+    return responseData;
   } catch (error) {
     console.error("Delete Footer Menu API Error:", error.response?.data ?? error.message);
     throw error;
@@ -83,7 +93,9 @@ export async function changeFooterMenuStatus(token, data) {
         Authorization: `Bearer ${token}`,
       },
     });
-    return response.data;
+    const responseData = response.data;
+    if (responseData?.status === false) throw new Error(responseData.message || "Something went wrong");
+    return responseData;
   } catch (error) {
     console.error("Change Footer Menu Status API Error:", error.response?.data ?? error.message);
     throw error;
@@ -98,7 +110,9 @@ export async function updateFooterMenuRank(token, data) {
         Authorization: `Bearer ${token}`,
       },
     });
-    return response.data;
+    const responseData = response.data;
+    if (responseData?.status === false) throw new Error(responseData.message || "Something went wrong");
+    return responseData;
   } catch (error) {
     console.error("Update Footer Menu Rank API Error:", error.response?.data ?? error.message);
     throw error;
