@@ -518,13 +518,22 @@ function FooterLinkModal({ initial, loading, onClose, onSubmit }) {
     cms_id: initial?.cms_id == null ? "" : String(initial.cms_id),
     url: initial?.url || "",
   });
+  const [errors, setErrors] = useState({});
   const inputClass =
     "w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-medium text-slate-800 outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/30";
   const handleChange = (event) => {
-    setForm((current) => ({ ...current, [event.target.name]: event.target.value }));
+    const { name, value } = event.target;
+    setForm((current) => ({ ...current, [name]: value }));
+    if (errors[name]) setErrors((current) => ({ ...current, [name]: "" }));
   };
   const handleSubmit = (event) => {
     event.preventDefault();
+    const nextErrors = {};
+    if (!form.link_label_name.trim()) nextErrors.link_label_name = "Link label is required.";
+    if (form.link_type === "0" && !form.cms_id.trim()) nextErrors.cms_id = "CMS ID is required for a CMS page link.";
+    if (form.link_type === "1" && !form.url.trim()) nextErrors.url = "URL is required for an external link.";
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length) return;
     onSubmit({ ...form, id: initial?.id });
   };
 
@@ -544,18 +553,20 @@ function FooterLinkModal({ initial, loading, onClose, onSubmit }) {
           </button>
         </div>
 
-        <form id="footer-link-form" onSubmit={handleSubmit} className="flex-1 space-y-5 overflow-y-auto p-6">
-          <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+        <form id="footer-link-form" noValidate onSubmit={handleSubmit} className="flex-1 space-y-5 overflow-y-auto p-6">
+          <div className="block text-xs font-bold uppercase tracking-wider text-slate-700">
             <span className="mb-1.5 flex items-center gap-2"><FiType className="text-orange-500" /> Link Label *</span>
             <input
-              required
               name="link_label_name"
               value={form.link_label_name}
               onChange={handleChange}
               placeholder="e.g. About Us"
-              className={inputClass}
+              className={`${inputClass} ${errors.link_label_name ? "border-rose-400 bg-rose-50/20 focus:border-rose-500 focus:ring-rose-400/30" : ""}`}
+              aria-invalid={Boolean(errors.link_label_name)}
+              aria-describedby={errors.link_label_name ? "footer-label-error" : undefined}
             />
-          </label>
+            {errors.link_label_name && <p id="footer-label-error" className="mt-1.5 text-xs font-medium text-rose-500">{errors.link_label_name}</p>}
+          </div>
 
           <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
             <span className="mb-1.5 flex items-center gap-2"><FiCheckCircle className="text-orange-500" /> Link Type *</span>
@@ -575,30 +586,35 @@ function FooterLinkModal({ initial, loading, onClose, onSubmit }) {
           </label>
 
           {form.link_type === "0" && (
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+            <div className="block text-xs font-bold uppercase tracking-wider text-slate-700">
               CMS ID *
               <input
-                required
                 name="cms_id"
                 value={form.cms_id}
                 onChange={handleChange}
                 placeholder="Enter the CMS page ID"
-                className={`${inputClass} mt-1.5`}
+                className={`${inputClass} mt-1.5 ${errors.cms_id ? "border-rose-400 bg-rose-50/20 focus:border-rose-500 focus:ring-rose-400/30" : ""}`}
+                aria-invalid={Boolean(errors.cms_id)}
+                aria-describedby={errors.cms_id ? "footer-cms-id-error" : undefined}
               />
-            </label>
+              {errors.cms_id && <p id="footer-cms-id-error" className="mt-1.5 text-xs font-medium text-rose-500">{errors.cms_id}</p>}
+            </div>
           )}
 
-          <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-            <span className="mb-1.5 flex items-center gap-2"><FiLink className="text-orange-500" /> URL</span>
+          <div className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+            <span className="mb-1.5 flex items-center gap-2"><FiLink className="text-orange-500" /> URL {form.link_type === "1" && <span className="text-rose-500">*</span>}</span>
             <input
               type="url"
               name="url"
               value={form.url}
               onChange={handleChange}
               placeholder="https://example.com"
-              className={inputClass}
+              className={`${inputClass} ${errors.url ? "border-rose-400 bg-rose-50/20 focus:border-rose-500 focus:ring-rose-400/30" : ""}`}
+              aria-invalid={Boolean(errors.url)}
+              aria-describedby={errors.url ? "footer-url-error" : undefined}
             />
-          </label>
+            {errors.url && <p id="footer-url-error" className="mt-1.5 text-xs font-medium text-rose-500">{errors.url}</p>}
+          </div>
         </form>
 
         <div className="flex justify-end gap-3 border-t border-slate-100 bg-slate-50/50 p-5">

@@ -498,11 +498,20 @@ function MenuModal({ initial, parents, loading, onClose, onSubmit }) {
     name: initial.name || "",
     parent_id: initial.parent_id ? String(initial.parent_id) : "",
   });
+  const [errors, setErrors] = useState({});
   const input = "w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-medium text-slate-800 outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/30";
-  const change = (event) =>
-    setForm((previous) => ({ ...previous, [event.target.name]: event.target.value }));
+  const change = (event) => {
+    const { name, value } = event.target;
+    setForm((previous) => ({ ...previous, [name]: value }));
+    if (errors[name]) setErrors((previous) => ({ ...previous, [name]: "" }));
+  };
   const handleSubmit = (event) => {
     event.preventDefault();
+    if (!form.name.trim()) {
+      setErrors({ name: "Menu name is required." });
+      return;
+    }
+    setErrors({});
     onSubmit({
       id: form.id,
       name: form.name,
@@ -522,11 +531,12 @@ function MenuModal({ initial, parents, loading, onClose, onSubmit }) {
           <button type="button" onClick={onClose} className="rounded-lg p-2 text-slate-400 hover:bg-slate-100"><RxCross1 /></button>
         </div>
 
-        <form id="menu-form" onSubmit={handleSubmit} className="flex-1 space-y-5 overflow-y-auto p-6">
-          <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+        <form id="menu-form" noValidate onSubmit={handleSubmit} className="flex-1 space-y-5 overflow-y-auto p-6">
+          <div className="block text-xs font-bold uppercase tracking-wider text-slate-700">
             <span className="mb-1.5 flex items-center gap-2"><FiType className="text-orange-500" /> Menu Name *</span>
-            <input required name="name" value={form.name} onChange={change} placeholder="e.g. Services" className={input} />
-          </label>
+            <input name="name" value={form.name} onChange={change} placeholder="e.g. Services" className={`${input} ${errors.name ? "border-rose-400 bg-rose-50/20 focus:border-rose-500 focus:ring-rose-400/30" : ""}`} aria-invalid={Boolean(errors.name)} aria-describedby={errors.name ? "menu-name-error" : undefined} />
+            {errors.name && <p id="menu-name-error" className="mt-1.5 text-xs font-medium text-rose-500">{errors.name}</p>}
+          </div>
           <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
             Parent Menu
             <select name="parent_id" value={form.parent_id} onChange={change} className={`${input} mt-1.5`}>

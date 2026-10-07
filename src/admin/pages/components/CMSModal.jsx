@@ -1,256 +1,108 @@
-import React, { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
+import { FiFileText, FiLink, FiSave, FiSearch, FiTag, FiType, FiX } from "react-icons/fi";
 import { RxCross1 } from "react-icons/rx";
-import {
-  FiSave,
-  FiXCircle,
-  FiType,
-  FiLink,
-  FiAlignLeft,
-  FiFileText,
-  FiSearch,
-  FiTag,
-  FiInfo,
-} from "react-icons/fi";
 import SimpleEditor from "./SimpleEditor";
 
-const CMSModal = ({ isOpen, onClose, onSubmit, initial }) => {
-  const [formData, setFormData] = useState({
-    page_title: "",
-    page_url: "",
-    short_description: "",
-    long_description: "",
-    meta_title: "",
-    meta_description: "",
-    meta_keywords: "",
-  });
+const emptyForm = {
+  page_name: "",
+  page_url: "",
+  description: "",
+  short_description: "",
+  seo_title: "",
+  seo_description: "",
+  seo_keywords: "",
+};
 
-  // Populate form if editing
+export default function CMSModal({ initial, loading, onClose, onSubmit }) {
+  const [form, setForm] = useState(emptyForm);
+  const [errors, setErrors] = useState({});
+  const input = "w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-medium text-slate-800 outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/30";
+
   useEffect(() => {
-    if (initial) {
-      setFormData({
-        page_title: initial.page_title || "",
-        page_url: initial.page_url || "",
-        short_description: initial.short_description || "",
-        long_description: initial.long_description || "",
-        meta_title: initial.meta_title || "",
-        meta_description: initial.meta_description || "",
-        meta_keywords: initial.meta_keywords || "",
-      });
-    } else {
-      // Reset form for adding
-      setFormData({
-        page_title: "",
-        page_url: "",
-        short_description: "",
-        long_description: "",
-        meta_title: "",
-        meta_description: "",
-        meta_keywords: "",
-      });
-    }
-  }, [initial, isOpen]);
+    setForm(initial ? {
+      page_name: initial.page_name || initial.name || "",
+      page_url: initial.page_url || initial.slug || "",
+      description: initial.description || "",
+      short_description: initial.short_description || "",
+      seo_title: initial.seo_title || "",
+      seo_description: initial.seo_description || "",
+      seo_keywords: initial.seo_keywords || "",
+    } : emptyForm);
+    setErrors({});
+  }, [initial]);
 
-  // Handle standard input changes
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+  const change = (event) => {
+    const { name, value } = event.target;
+    setForm((previous) => ({ ...previous, [name]: value }));
+    if (errors[name]) setErrors((previous) => ({ ...previous, [name]: "" }));
   };
-
-  // Auto-generate slug from page title
-  const handleTitleChange = (e) => {
-    const value = e.target.value;
-    const slug = value
-      .toLowerCase()
-      .replace(/[^a-z0-9\s-]/g, "")
-      .replace(/\s+/g, "-");
-    setFormData((prev) => ({
-      ...prev,
-      page_title: value,
-      page_url: initial ? prev.page_url : slug, // Only auto-generate slug if it's a new entry
-    }));
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    // Simulate API call & Optimistic UI update
-    onSubmit(formData);
+  const submit = (event) => {
+    event.preventDefault();
+    const descriptionText = form.description.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim();
+    const nextErrors = {};
+    if (!form.page_name.trim()) nextErrors.page_name = "Page name is required.";
+    if (!form.page_url.trim()) nextErrors.page_url = "Page URL is required.";
+    if (!form.short_description.trim()) nextErrors.short_description = "Short description is required.";
+    if (!descriptionText) nextErrors.description = "Description is required.";
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length) return;
+    onSubmit({ ...form, page_name: form.page_name.trim(), page_url: form.page_url.trim() });
   };
 
   return (
     <>
-      {/* Backdrop */}
-      <div
-        className={`fixed inset-0 bg-black bg-opacity-50 z-40 transition-opacity duration-300 ${
-          isOpen ? "opacity-100" : "opacity-0 pointer-events-none"
-        }`}
-        onClick={onClose}
-      />
-
-      {/* Slide-in Panel */}
-      <div
-        className={`fixed top-0 right-0 h-full w-full sm:max-w-lg bg-white shadow-xl z-50 flex flex-col transform transition-transform duration-300 ease-in-out ${
-          isOpen ? "translate-x-0" : "translate-x-full"
-        }`}
-      >
-        {/* Modal Header */}
-        <div className="flex justify-between items-center p-6 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
-            {initial ? <FiFileText className="text-blue-600" /> : <FiFileText className="text-blue-600" />}
-            {initial ? "Edit Page" : "Add New Page"}
-          </h2>
-          <button
-            onClick={onClose}
-            className="text-gray-500 hover:text-gray-700 transition-colors"
-          >
-            <RxCross1 size={24} />
-          </button>
+      <div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm" onClick={loading ? undefined : onClose} />
+      <div className="fixed inset-y-0 right-0 z-50 flex w-full flex-col bg-white shadow-2xl sm:max-w-xl">
+        <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/50 p-5">
+          <div>
+            <h2 className="flex items-center gap-2 text-lg font-bold text-slate-800"><FiFileText className="text-orange-500" />{initial ? "Edit CMS Page" : "Add CMS Page"}</h2>
+            <p className="mt-1 text-xs text-slate-400">Manage page content, URL, and search metadata.</p>
+          </div>
+          <button type="button" disabled={loading} onClick={onClose} className="rounded-lg p-2 text-slate-400 hover:bg-slate-100"><RxCross1 /></button>
         </div>
 
-        {/* Modal Body */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-6">
-          {/* Page Title */}
-          <div>
-            <label className="flex items-center text-sm font-medium text-gray-700 mb-1 gap-2">
-              <FiType /> Page Title *
-            </label>
-            <input
-              type="text"
-              name="page_title"
-              value={formData.page_title}
-              onChange={handleTitleChange}
-              required
-              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
-              placeholder="Enter page title"
-            />
+        <form id="cms-form" noValidate onSubmit={submit} className="flex-1 space-y-5 overflow-y-auto p-6">
+          <div className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+            <span className="mb-1.5 flex items-center gap-2"><FiType className="text-orange-500" /> Page Name *</span>
+            <input name="page_name" value={form.page_name} onChange={change} className={`${input} ${errors.page_name ? "border-rose-400 bg-rose-50/20 focus:border-rose-500 focus:ring-rose-400/30" : ""}`} placeholder="e.g. About Us" aria-invalid={Boolean(errors.page_name)} aria-describedby={errors.page_name ? "cms-name-error" : undefined} />
+            {errors.page_name && <p id="cms-name-error" className="mt-1.5 text-xs font-medium text-rose-500">{errors.page_name}</p>}
           </div>
-
-          {/* Page URL */}
-          <div>
-            <label className="flex items-center text-sm font-medium text-gray-700 mb-1 gap-2">
-              <FiLink /> Page URL *
-            </label>
-            <div className="flex items-center border border-gray-300 rounded-md focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-transparent transition-all">
-              <span className="pl-4 pr-2 text-gray-400 text-sm">/</span>
-              <input
-                type="text"
-                name="page_url"
-                value={formData.page_url}
-                onChange={handleChange}
-                required
-                className="w-full py-2 pr-4 outline-none border-none rounded-r-md"
-                placeholder="page-url"
-              />
-            </div>
+          <div className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+            <span className="mb-1.5 flex items-center gap-2"><FiLink className="text-orange-500" /> Page URL *</span>
+            <input name="page_url" value={form.page_url} onChange={change} className={`${input} ${errors.page_url ? "border-rose-400 bg-rose-50/20 focus:border-rose-500 focus:ring-rose-400/30" : ""}`} placeholder="https://example.com/about-us" aria-invalid={Boolean(errors.page_url)} aria-describedby={errors.page_url ? "cms-url-error" : undefined} />
+            {errors.page_url && <p id="cms-url-error" className="mt-1.5 text-xs font-medium text-rose-500">{errors.page_url}</p>}
           </div>
-
-          {/* Short Description */}
-          <div>
-            <label className="flex items-center text-sm font-medium text-gray-700 mb-1 gap-2">
-              <FiAlignLeft /> Short Description *
-            </label>
-            <textarea
-              name="short_description"
-              value={formData.short_description}
-              onChange={handleChange}
-              required
-              rows="3"
-              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all resize-none"
-              placeholder="Enter short description"
-            />
+          <div className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+            <span className="mb-1.5 block">Short Description *</span>
+            <textarea name="short_description" rows={3} value={form.short_description} onChange={change} className={`${input} ${errors.short_description ? "border-rose-400 bg-rose-50/20 focus:border-rose-500 focus:ring-rose-400/30" : ""}`} aria-invalid={Boolean(errors.short_description)} aria-describedby={errors.short_description ? "cms-short-description-error" : undefined} />
+            {errors.short_description && <p id="cms-short-description-error" className="mt-1.5 text-xs font-medium text-rose-500">{errors.short_description}</p>}
           </div>
-
-          {/* Long Description (Rich Text) */}
           <div>
-            <label className="flex items-center text-sm font-medium text-gray-700 mb-1 gap-2">
-              <FiFileText /> Long Description
-            </label>
-            <div className="border border-gray-300 rounded-md overflow-hidden focus-within:ring-2 focus-within:ring-blue-500 transition-all">
-              {/* Quill Toolbar Styles Override to match Tailwind container */}
-              <style>{`
-                .ql-toolbar { border: none; border-bottom: 1px solid #e5e7eb; background: #f9fafb; }
-                .ql-container { border: none; font-family: inherit; }
-                .ql-editor { min-height: 150px; font-size: 14px; }
-              `}</style>
-
-              <SimpleEditor
-                value={formData.long_description}
-                onChange={(html) => setFormData((prev) => ({ ...prev, long_description: html }))}
-              />
+            <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-700">Description *</label>
+            <div className={`overflow-hidden rounded-xl border focus-within:ring-2 ${errors.description ? "border-rose-400 bg-rose-50/20 focus-within:ring-rose-400/30" : "border-slate-200 focus-within:ring-orange-500/30"}`}>
+              <SimpleEditor value={form.description} onChange={(description) => {
+                setForm((previous) => ({ ...previous, description }));
+                if (errors.description) setErrors((previous) => ({ ...previous, description: "" }));
+              }} />
             </div>
+            {errors.description && <p className="mt-1.5 text-xs font-medium text-rose-500">{errors.description}</p>}
           </div>
-
-          <div className="pt-4 border-t border-gray-100">
-            <h3 className="text-lg font-medium text-gray-800 mb-4 flex items-center gap-2">
-              <FiSearch className="text-blue-600" /> SEO & Meta
-            </h3>
-
-            {/* Meta Title */}
-            <div className="mb-4">
-              <label className="flex items-center text-sm font-medium text-gray-700 mb-1 gap-2">
-                <FiInfo /> Meta Title
-              </label>
-              <input
-                type="text"
-                name="meta_title"
-                value={formData.meta_title}
-                onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
-                placeholder="Enter meta title"
-              />
-            </div>
-
-            {/* Meta Description */}
-            <div className="mb-4">
-              <label className="flex items-center text-sm font-medium text-gray-700 mb-1 gap-2">
-                <FiAlignLeft /> Meta Description
-              </label>
-              <textarea
-                name="meta_description"
-                value={formData.meta_description}
-                onChange={handleChange}
-                rows="3"
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all resize-none"
-                placeholder="Enter meta description"
-              />
-            </div>
-
-            {/* Meta Keywords */}
-            <div>
-              <label className="flex items-center text-sm font-medium text-gray-700 mb-1 gap-2">
-                <FiTag /> Meta Keywords
-              </label>
-              <input
-                type="text"
-                name="meta_keywords"
-                value={formData.meta_keywords}
-                onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
-                placeholder="Enter meta keywords (comma separated)"
-              />
-            </div>
+          <div className="space-y-4 border-t border-slate-100 pt-5">
+            <h3 className="flex items-center gap-2 text-sm font-bold text-primary"><FiSearch className="text-orange-500" /> SEO Settings</h3>
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">SEO Title<input name="seo_title" value={form.seo_title} onChange={change} className={`${input} mt-1.5`} /></label>
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">SEO Description<textarea name="seo_description" rows={3} value={form.seo_description} onChange={change} className={`${input} mt-1.5`} /></label>
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700"><span className="mb-1.5 flex items-center gap-2"><FiTag className="text-orange-500" /> SEO Keywords</span><input name="seo_keywords" value={form.seo_keywords} onChange={change} className={input} placeholder="Comma separated" /></label>
           </div>
         </form>
 
-        {/* Modal Footer */}
-        <div className="p-6 border-t border-gray-200 flex gap-4 justify-end">
-          <button
-            onClick={onClose}
-            type="button"
-            className="flex items-center gap-2 px-6 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-md font-medium transition-colors"
-          >
-            <FiXCircle /> Cancel
-          </button>
-          <button
-            onClick={handleSubmit}
-            type="submit"
-            className="flex items-center gap-2 px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium transition-colors"
-          >
-            <FiSave /> {initial ? "Update Page" : "Save Page"}
+        <div className="flex justify-end gap-3 border-t border-slate-100 bg-slate-50/50 p-5">
+          <button type="button" disabled={loading} onClick={onClose} className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700">Cancel</button>
+          <button form="cms-form" type="submit" disabled={loading} className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 px-6 py-2.5 text-sm font-bold text-white disabled:opacity-50">
+            {loading ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" /> : <FiSave />}
+            {initial ? "Update Page" : "Create Page"}
           </button>
         </div>
       </div>
     </>
   );
-};
-
-export default CMSModal;
+}

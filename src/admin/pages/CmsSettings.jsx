@@ -1,427 +1,270 @@
-import React, { useState, useMemo } from "react";
-import { FiSearch, FiCopy, FiTrash2, FiEdit2, FiChevronDown } from "react-icons/fi";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "react-toastify";
+import { FiChevronDown, FiCopy, FiEdit2, FiEye, FiRefreshCw, FiSearch, FiTrash2, FiX } from "react-icons/fi";
 import { GoPlus } from "react-icons/go";
 import { BsGripVertical } from "react-icons/bs";
-import CMSModal from "./components/CMSModal";
-
-// Dnd-kit imports for smooth drag and drop
-import {
-  DndContext,
-  closestCenter,
-  PointerSensor,
-  KeyboardSensor,
-  useSensor,
-  useSensors,
-} from "@dnd-kit/core";
-import {
-  arrayMove,
-  SortableContext,
-  useSortable,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
+import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import {
+  changeCmsStatus,
+  createCms,
+  deleteCms,
+  getCmsList,
+  getCmsView,
+  updateCms,
+  updateCmsRank,
+} from "../../api/cms/cms";
+import CMSModal from "./components/CMSModal";
+import ConfirmModal from "./components/ConfirmModal";
 
-const CmsSettings = () => {
-  // State Management
-  const [data, setData] = useState([
-    { id: 1, page_title: "About Us", page_url: "about-us", short_description: "Learn more about us", rank: 1, status: true },
-    { id: 2, page_title: "Privacy Policy", page_url: "privacy-policy", short_description: "Our privacy guidelines", rank: 2, status: true },
-    { id: 3, page_title: "Terms & Conditions", page_url: "terms-conditions", short_description: "Terms of service", rank: 3, status: false },
-    { id: 4, page_title: "Contact Us", page_url: "contact-us", short_description: "Get in touch", rank: 4, status: true },
-    { id: 5, page_title: "FAQs", page_url: "faqs", short_description: "Frequently asked questions", rank: 5, status: true },
-  ]);
+const getList = (response) => {
+  if (Array.isArray(response?.data)) return response.data;
+  if (Array.isArray(response)) return response;
+  return [];
+};
+const isActive = (status) => status === 1 || status === "1" || status === true;
+const errorMessage = (error) => error?.response?.data?.message || error?.message || "Something went wrong";
+const pageName = (item) => item.page_name || item.name || "Untitled page";
+const pageUrl = (item) => item.page_url || item.slug || "";
 
+export default function CmsSettings() {
+  const [pages, setPages] = useState([]);
+  const [totalCount, setTotalCount] = useState(0);
   const [search, setSearch] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(5);
-  const [selectedIds, setSelectedIds] = useState([]);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editData, setEditData] = useState(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [selected, setSelected] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [editForm, setEditForm] = useState(null);
+  const [view, setView] = useState(null);
+  const latestRequest = useRef(0);
+  const token = localStorage.getItem("admin_token");
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }), useSensor(KeyboardSensor));
 
-  // Filtered and Paginated Data
-  const filteredData = useMemo(() => {
-    return data.filter((item) =>
-      item.page_title.toLowerCase().includes(search.toLowerCase())
-    );
-  }, [data, search]);
+  const fetchPages = useCallback(async (keyword = "") => {
+    const requestId = ++latestRequest.current;
+    setLoading(true);
+    try {
+      const searchKeyword = keyword.trim();
+      const response = await getCmsList(token, searchKeyword ? { search_keyword: searchKeyword } : {});
+      if (requestId !== latestRequest.current) return;
+      const list = getList(response);
+      setPages(list);
+      setTotalCount(Number.isFinite(Number(response?.total_count)) ? Number(response.total_count) : list.length);
+      setSelected([]);
+    } catch (error) {
+      if (requestId === latestRequest.current) toast.error(errorMessage(error));
+    } finally {
+      if (requestId === latestRequest.current) setLoading(false);
+    }
+  }, [token]);
 
-  const currentTableData = useMemo(() => {
-    const firstPageIndex = (currentPage - 1) * itemsPerPage;
-    const lastPageIndex = firstPageIndex + itemsPerPage;
-    return filteredData.slice(firstPageIndex, lastPageIndex);
-  }, [filteredData, currentPage, itemsPerPage]);
+  useEffect(() => {
+    const timer = setTimeout(() => fetchPages(search), 300);
+    return () => clearTimeout(timer);
+  }, [fetchPages, search]);
 
-  const totalPages = Math.ceil(filteredData.length / itemsPerPage) || 1;
-  const showingFrom = filteredData.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1;
-  const showingTo = Math.min(currentPage * itemsPerPage, filteredData.length);
+  const totalPages = Math.max(1, Math.ceil(pages.length / pageSize));
+  const rows = useMemo(() => pages.slice((page - 1) * pageSize, page * pageSize), [pages, page, pageSize]);
+  const first = pages.length ? (page - 1) * pageSize + 1 : 0;
+  const last = Math.min(page * pageSize, pages.length);
+  const selectedPage = rows.length > 0 && rows.every((item) => selected.includes(item.id));
 
-  // Handlers
-  const handleSearch = (e) => {
-    setSearch(e.target.value);
-    setCurrentPage(1);
-  };
+  useEffect(() => { if (page > totalPages) setPage(totalPages); }, [page, totalPages]);
 
-  const handleSelectRow = (id) => {
-    setSelectedIds((prev) =>
-      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
-    );
-  };
+  const toggleSelect = (id) => setSelected((previous) => previous.includes(id) ? previous.filter((value) => value !== id) : [...previous, id]);
+  const toggleAll = (event) => setSelected((previous) => event.target.checked
+    ? [...new Set([...previous, ...rows.map((item) => item.id)])]
+    : previous.filter((id) => !rows.some((item) => item.id === id)));
 
-  const handleSelectAll = (e) => {
-    if (e.target.checked) {
-      setSelectedIds(currentTableData.map((item) => item.id));
-    } else {
-      setSelectedIds([]);
+  const openView = async (item) => {
+    setView({ loading: true, data: item });
+    try {
+      const response = await getCmsView(token, { id: item.id });
+      setView({ loading: false, data: response?.data || item });
+    } catch (error) {
+      setView(null);
+      toast.error(errorMessage(error));
     }
   };
 
-  const handleStatusChange = (id) => {
-    setData((prev) =>
-      prev.map((item) =>
-        item.id === id ? { ...item, status: !item.status } : item
-      )
-    );
-  };
-
-  const handleDelete = async () => {
-    if (selectedIds.length === 0) return alert("Please select a row to delete");
-    if (!window.confirm("Are you sure you want to delete selected pages?")) return;
-
-    setData((prev) => prev.filter((item) => !selectedIds.includes(item.id)));
-    setSelectedIds([]);
-  };
-
-  const handleCopy = (text) => {
-    navigator.clipboard.writeText(text);
-    alert("URL copied to clipboard");
-  };
-
-  // Dnd-kit Sensors
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: { distance: 5 }, // Ensures clicks don't trigger drag
-    }),
-    useSensor(KeyboardSensor)
-  );
-
-  // Dnd-kit Drag End Handler
-  const handleDragEnd = (event) => {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-
-    const oldIndex = data.findIndex((item) => item.id === active.id);
-    const newIndex = data.findIndex((item) => item.id === over.id);
-
-    if (oldIndex !== -1 && newIndex !== -1) {
-      const newData = arrayMove(data, oldIndex, newIndex);
-
-      // Re-calculate ranks globally
-      const reRankedData = newData.map((item, index) => ({
-        ...item,
-        rank: index + 1,
-      }));
-
-      setData(reRankedData);
-
-      // Find the moved item to send to API
-      const updatedItem = reRankedData.find((i) => i.id === active.id);
-      console.log("Sending new rank to API:", updatedItem);
-      // Add your API call for rank update here
+  const openEdit = async (item) => {
+    try {
+      const response = await getCmsView(token, { id: item.id });
+      setEditForm({ ...item, ...(response?.data || {}) });
+    } catch (error) {
+      toast.error(errorMessage(error));
     }
   };
 
-  const handleEdit = (item) => {
-    setEditData(item);
-    setIsModalOpen(true);
-  };
-
-  const handleAdd = () => {
-    setEditData(null);
-    setIsModalOpen(true);
-  };
-
-  const handleModalSubmit = (formData) => {
-    if (editData) {
-      setData((prev) =>
-        prev.map((item) =>
-          item.id === editData.id ? { ...item, ...formData } : item
-        )
-      );
-    } else {
-      const newItem = {
-        id: Date.now(),
-        ...formData,
-        rank: data.length + 1,
-        status: true,
+  const savePage = async (form) => {
+    setSaving(true);
+    try {
+      const payload = {
+        page_name: form.page_name,
+        description: form.description || "",
+        short_description: form.short_description || "",
+        page_url: form.page_url,
+        seo_title: form.seo_title || "",
+        seo_description: form.seo_description || "",
+        seo_keywords: form.seo_keywords || "",
       };
-      setData((prev) => [...prev, newItem]);
+      if (editForm?.id) {
+        await updateCms(token, { id: String(editForm.id), ...payload });
+      } else {
+        await createCms(token, payload);
+      }
+      toast.success(editForm?.id ? "CMS page updated" : "CMS page created");
+      setEditForm(null);
+      await fetchPages(search);
+    } catch (error) {
+      toast.error(errorMessage(error));
+    } finally {
+      setSaving(false);
     }
-    setIsModalOpen(false);
   };
 
-  // Header cell style (rounded ends make the header look like one pill bar)
-  const th =
-    "px-4 py-3.5 bg-[#F4F4F4] text-xs font-bold text-body first:rounded-l-xl last:rounded-r-xl";
+  const toggleStatus = async (item) => {
+    const nextStatus = isActive(item.status) ? 0 : 1;
+    try {
+      await changeCmsStatus(token, { id: item.id, status: nextStatus });
+      setPages((previous) => previous.map((pageItem) => pageItem.id === item.id ? { ...pageItem, status: nextStatus } : pageItem));
+      toast.success("CMS page status updated");
+    } catch (error) {
+      toast.error(errorMessage(error));
+    }
+  };
+
+  const deleteSelected = async () => {
+    if (!selected.length) return;
+    setDeleting(true);
+    try {
+      await deleteCms(token, { ids: selected });
+      toast.success("CMS page(s) deleted");
+      setConfirmDelete(false);
+      await fetchPages(search);
+    } catch (error) {
+      toast.error(errorMessage(error));
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const reorder = async ({ active, over }) => {
+    if (!over || String(active.id) === String(over.id)) return;
+    const from = pages.findIndex((item) => String(item.id) === String(active.id));
+    const to = pages.findIndex((item) => String(item.id) === String(over.id));
+    if (from < 0 || to < 0) return;
+    const previous = pages;
+    const next = arrayMove(pages, from, to).map((item, index) => ({ ...item, rank: index + 1 }));
+    setPages(next);
+    try {
+      await updateCmsRank(token, { id: active.id, rank: next[to].rank });
+      toast.success("CMS page order updated");
+    } catch (error) {
+      setPages(previous);
+      toast.error(errorMessage(error));
+    }
+  };
+
+  const copyUrl = async (url) => {
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success("Page URL copied");
+    } catch {
+      toast.error("Could not copy page URL");
+    }
+  };
+
+  const th = "px-4 py-3.5 bg-[#F4F4F4] text-xs font-bold text-slate-700 first:rounded-l-xl last:rounded-r-xl";
 
   return (
-    <div className="p-6 bg-white min-h-screen font-body">
-      {/* Header */}
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-heading font-bold text-primary">CMS Pages</h1>
+    <div className="min-h-screen rounded-2xl border border-slate-100 bg-white p-6 font-body shadow-sm">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+        <div><h1 className="font-heading text-2xl font-bold text-primary">CMS Pages</h1><p className="mt-1 text-sm text-slate-500">Manage page content and SEO details.</p></div>
+        <button onClick={() => fetchPages(search)} className="flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-200"><FiRefreshCw /> Refresh</button>
       </div>
 
-      {/* Toolbar */}
-      <div className="mb-4 flex flex-col sm:flex-row gap-4 justify-between items-center">
+      <div className="mb-4 flex flex-col items-center justify-between gap-4 sm:flex-row">
         <div className="flex gap-2">
-          {selectedIds.length > 0 && (
-            <button
-              onClick={handleDelete}
-              className="bg-red-500 hover:bg-red-600 text-white text-sm font-semibold px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
-            >
-              <FiTrash2 /> Delete Selected
-            </button>
-          )}
-          <button
-            onClick={handleAdd}
-            className="bg-accent hover:brightness-95 text-white text-sm font-semibold px-4 py-2 rounded-lg flex items-center gap-2 transition"
-          >
-            <GoPlus /> Add Page
-          </button>
+          <button onClick={() => setEditForm({})} className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 px-4 py-2.5 text-sm font-bold text-white shadow-md shadow-orange-500/20"><GoPlus /> Add Page</button>
+          {selected.length > 0 && <button disabled={deleting} onClick={() => setConfirmDelete(true)} className="flex items-center gap-2 rounded-xl bg-rose-500 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"><FiTrash2 /> Delete ({selected.length})</button>}
         </div>
-
-        <div className="relative w-full sm:w-64">
-          <input
-            type="text"
-            placeholder="Search pages..."
-            value={search}
-            onChange={handleSearch}
-            className="w-full pl-10 pr-4 py-2 text-sm bg-[#F4F4F4] rounded-lg outline-none focus:ring-2 focus:ring-secondary/40 transition-all"
-          />
-          <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+        <div className="relative w-full sm:w-72">
+          <input value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} placeholder="Search pages..." className="w-full rounded-xl bg-[#F4F4F4] py-2.5 pl-10 pr-4 text-sm outline-none focus:ring-2 focus:ring-orange-500/40" />
+          <FiSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
         </div>
       </div>
 
-      {/* Table */}
       <div className="overflow-x-auto">
-        <table className="w-full text-left border-separate border-spacing-y-1">
-          <thead>
-            <tr>
-              <th className={`${th} w-10`}>
-                <input
-                  type="checkbox"
-                  checked={
-                    selectedIds.length === currentTableData.length &&
-                    currentTableData.length > 0
-                  }
-                  onChange={handleSelectAll}
-                  className="w-4 h-4 rounded border-gray-300 accent-accent"
-                />
-              </th>
-              <th className={`${th} w-10`}></th> {/* Drag Handle Column */}
-              <th className={th}>Rank</th>
-              <th className={th}>Page Title</th>
-              <th className={th}>URL</th>
-              <th className={th}>Status</th>
-              <th className={`${th} text-right`}>Actions</th>
-            </tr>
-          </thead>
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={handleDragEnd}
-          >
-            <SortableContext
-              items={currentTableData.map((item) => item.id)}
-              strategy={verticalListSortingStrategy}
-            >
+        <table className="w-full border-separate border-spacing-y-1 text-left">
+          <thead><tr>
+            <th className={`${th} w-10`}><input type="checkbox" checked={selectedPage} onChange={toggleAll} className="h-4 w-4 accent-orange-500" /></th>
+            <th className={`${th} w-12`}>Rank</th><th className={th}>Page Name</th><th className={th}>URL</th><th className={th}>Status</th><th className={`${th} text-center`}>Actions</th>
+          </tr></thead>
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={reorder}>
+            <SortableContext items={rows.map((item) => String(item.id))} strategy={verticalListSortingStrategy}>
               <tbody>
-                {currentTableData.map((item, index) => (
-                  <SortableRow
-                    key={item.id}
-                    item={item}
-                    index={index}
-                    selectedIds={selectedIds}
-                    handleSelectRow={handleSelectRow}
-                    handleStatusChange={handleStatusChange}
-                    handleCopy={handleCopy}
-                    handleEdit={handleEdit}
-                  />
-                ))}
-                {currentTableData.length === 0 && (
-                  <tr>
-                    <td colSpan="7" className="p-6 text-center text-sm text-gray-500">
-                      No data found
-                    </td>
-                  </tr>
-                )}
+                {loading ? <tr><td colSpan={6} className="py-10 text-center text-sm text-slate-500">Loading CMS pages...</td></tr> : rows.map((item, index) => <CmsRow key={item.id} item={item} index={index} selected={selected.includes(item.id)} onSelect={() => toggleSelect(item.id)} onStatus={() => toggleStatus(item)} onView={() => openView(item)} onEdit={() => openEdit(item)} onCopy={() => copyUrl(pageUrl(item))} />)}
+                {!loading && rows.length === 0 && <tr><td colSpan={6} className="py-10 text-center text-sm text-slate-500">No CMS pages found.</td></tr>}
               </tbody>
             </SortableContext>
           </DndContext>
         </table>
       </div>
 
-      {/* Footer / Pagination */}
-      <div className="mt-4 flex flex-col sm:flex-row justify-between items-center gap-4 text-sm text-body/60">
-        <span>
-          Showing {showingFrom} to {showingTo} of {filteredData.length} items
-        </span>
-
+      <div className="mt-4 flex flex-col items-center justify-between gap-4 text-sm text-slate-500 sm:flex-row">
+        <span>Showing {first} to {last} of {totalCount} pages</span>
         <div className="flex items-center gap-3">
-          <button
-            disabled={currentPage === 1}
-            onClick={() => setCurrentPage((prev) => prev - 1)}
-            className="px-3 py-1.5 text-xs font-semibold text-body bg-[#F4F4F4] rounded-lg disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-200 transition-colors"
-          >
-            Previous
-          </button>
-          <span className="text-xs text-body">
-            Page <strong>{currentPage}</strong> of {totalPages}
-          </span>
-          <button
-            disabled={currentPage === totalPages}
-            onClick={() => setCurrentPage((prev) => prev + 1)}
-            className="px-3 py-1.5 text-xs font-semibold text-body bg-[#F4F4F4] rounded-lg disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-200 transition-colors"
-          >
-            Next
-          </button>
-
-          {/* Items per page */}
-          <div className="relative">
-            <select
-              value={itemsPerPage}
-              onChange={(e) => {
-                setItemsPerPage(Number(e.target.value));
-                setCurrentPage(1);
-              }}
-              className="appearance-none bg-white border border-gray-200 rounded-lg pl-3 pr-8 py-1.5 text-xs font-semibold text-body outline-none focus:ring-2 focus:ring-secondary/40 cursor-pointer"
-            >
-              <option value={5}>5</option>
-              <option value={10}>10</option>
-              <option value={20}>20</option>
-              <option value={50}>50</option>
-            </select>
-            <FiChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-body/60" />
-          </div>
+          <button disabled={page === 1} onClick={() => setPage((current) => current - 1)} className="rounded-lg bg-[#F4F4F4] px-3 py-1.5 font-semibold text-slate-700 disabled:opacity-40">Previous</button>
+          <span className="text-xs">Page <strong>{page}</strong> of {totalPages}</span>
+          <button disabled={page === totalPages} onClick={() => setPage((current) => current + 1)} className="rounded-lg bg-[#F4F4F4] px-3 py-1.5 font-semibold text-slate-700 disabled:opacity-40">Next</button>
+          <div className="relative"><select value={pageSize} onChange={(event) => { setPageSize(Number(event.target.value)); setPage(1); }} className="appearance-none rounded-lg border border-slate-200 bg-white py-1.5 pl-3 pr-8 text-xs font-semibold outline-none focus:ring-2 focus:ring-orange-500/30"><option value={5}>5</option><option value={10}>10</option><option value={20}>20</option><option value={50}>50</option></select><FiChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-slate-500" /></div>
         </div>
       </div>
 
-      {/* Modal */}
-      {isModalOpen && (
-        <CMSModal
-          isOpen={isModalOpen}
-          initial={editData}
-          onClose={() => setIsModalOpen(false)}
-          onSubmit={handleModalSubmit}
-        />
-      )}
+      {editForm && <CMSModal initial={editForm.id ? editForm : null} loading={saving} onClose={() => setEditForm(null)} onSubmit={savePage} />}
+      {view && <ViewModal view={view} onClose={() => setView(null)} />}
+      <ConfirmModal
+        isOpen={confirmDelete}
+        onClose={() => setConfirmDelete(false)}
+        onConfirm={deleteSelected}
+        title="Delete Selected CMS Page(s)?"
+        message={`Are you sure you want to permanently delete ${selected.length} selected CMS page(s)? This action cannot be undone.`}
+        confirmText="Yes, Delete"
+        loading={deleting}
+      />
     </div>
   );
-};
+}
 
-// =============================================
-// Sortable Row Component
-// =============================================
-const SortableRow = ({
-  item,
-  index,
-  selectedIds,
-  handleSelectRow,
-  handleStatusChange,
-  handleCopy,
-  handleEdit,
-}) => {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: item.id });
+function CmsRow({ item, index, selected, onSelect, onStatus, onView, onEdit, onCopy }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: String(item.id) });
+  const style = { transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 10 : undefined, position: isDragging ? "relative" : undefined };
+  const active = isActive(item.status);
+  const bg = isDragging ? "bg-sky-50" : index % 2 ? "bg-[#F4F4F4]" : "bg-white";
+  const td = `px-4 py-3 ${bg} align-middle first:rounded-l-xl last:rounded-r-xl`;
+  const url = pageUrl(item);
+  return <tr ref={setNodeRef} style={style} className={isDragging ? "shadow-md" : ""}>
+    <td className={td}><input type="checkbox" checked={selected} onChange={onSelect} className="h-4 w-4 accent-orange-500" /></td>
+    <td className={td}><button {...attributes} {...listeners} aria-label={`Reorder ${pageName(item)}`} className="flex touch-none cursor-grab items-center gap-1 text-sm font-semibold text-slate-700"><BsGripVertical className="text-secondary/70" />{item.rank ?? index + 1}</button></td>
+    <td className={`${td} text-sm font-semibold text-slate-800`}>{pageName(item)}{item.short_description && <div className="mt-0.5 max-w-sm truncate text-xs font-normal text-slate-500">{item.short_description}</div>}</td>
+    <td className={`${td} text-sm text-slate-600`}><div className="flex items-center gap-2"><span className="max-w-xs truncate">{url || "—"}</span>{url && <button aria-label="Copy page URL" onClick={onCopy} className="text-slate-400 hover:text-orange-600"><FiCopy /></button>}</div></td>
+    <td className={td}><button type="button" onClick={onStatus} className={`inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-xs font-bold ${active ? "border-emerald-200 bg-emerald-50 text-emerald-600" : "border-rose-200 bg-rose-50 text-rose-600"}`}><span className={`h-2 w-2 rounded-full ${active ? "bg-emerald-500" : "bg-rose-500"}`} />{active ? "Active" : "Inactive"}</button></td>
+    <td className={`${td} text-center`}><div className="flex justify-center gap-2"><button onClick={onView} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:border-secondary"><FiEye /> View</button><button onClick={onEdit} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:border-orange-500 hover:text-orange-600"><FiEdit2 /> Edit</button></div></td>
+  </tr>;
+}
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    zIndex: isDragging ? 1000 : "auto",
-    position: isDragging ? "relative" : undefined,
-  };
-
-  // Alternate rows: white / light grey. Background sits on the cells so the
-  // rounded ends work inside a table.
-  const bg = isDragging ? "bg-sky-50" : index % 2 === 1 ? "bg-[#F4F4F4]" : "bg-white";
-  const td = `px-4 py-3 ${bg} first:rounded-l-xl last:rounded-r-xl`;
-
-  return (
-    <tr ref={setNodeRef} style={style} className={isDragging ? "shadow-md" : ""}>
-      <td className={td}>
-        <input
-          type="checkbox"
-          checked={selectedIds.includes(item.id)}
-          onChange={() => handleSelectRow(item.id)}
-          className="w-4 h-4 rounded border-gray-300 accent-accent"
-        />
-      </td>
-
-      {/* Drag Handle - listeners and attributes applied here */}
-      <td className={td}>
-        <button
-          className="cursor-grab active:cursor-grabbing touch-none w-6 h-6 rounded-full border border-gray-300 bg-white text-gray-500 hover:text-primary hover:border-primary flex items-center justify-center transition-colors"
-          {...attributes}
-          {...listeners}
-        >
-          <BsGripVertical size={14} />
-        </button>
-      </td>
-
-      <td className={`${td} text-sm text-body`}>{item.rank}</td>
-
-      {/* Title + small description underneath (like name + email in the design) */}
-      <td className={td}>
-        <div className="text-sm font-medium text-body leading-tight">{item.page_title}</div>
-        <div className="text-[11px] text-body/50 mt-0.5">{item.short_description}</div>
-      </td>
-
-      <td className={`${td} text-sm text-body/70`}>
-        <div className="flex items-center gap-2">
-          <span>{`/${item.page_url}`}</span>
-          <FiCopy
-            className="cursor-pointer text-gray-400 hover:text-secondary transition-colors"
-            onClick={() => handleCopy(item.page_url)}
-          />
-        </div>
-      </td>
-
-      {/* Status: dot + coloured label, click to toggle */}
-      <td className={td}>
-        <button
-          type="button"
-          onClick={() => handleStatusChange(item.id)}
-          className={`inline-flex items-center gap-2 text-xs font-semibold ${
-            item.status ? "text-green-600" : "text-red-600"
-          }`}
-          title="Click to toggle status"
-        >
-          <span
-            className={`w-3.5 h-3.5 rounded-full border-2 ${
-              item.status
-                ? "border-green-300 bg-green-500"
-                : "border-red-300 bg-red-500"
-            }`}
-          />
-          {item.status ? "Active" : "Inactive"}
-        </button>
-      </td>
-
-      <td className={`${td} text-right`}>
-        <button
-          onClick={() => handleEdit(item)}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-gray-100 shadow-sm text-xs font-semibold text-body hover:border-secondary/40 hover:text-secondary transition-colors"
-        >
-          <FiEdit2 size={12} /> Edit
-        </button>
-      </td>
-    </tr>
-  );
-};
-
-export default CmsSettings;
+function ViewModal({ view, onClose }) {
+  const data = view.data || {};
+  return <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+    <div role="dialog" aria-modal="true" className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
+      <div className="mb-5 flex items-start justify-between"><div><h2 className="font-heading text-xl font-bold text-primary">CMS Page Details</h2><p className="mt-1 text-sm text-slate-500">{pageName(data)}</p></div><button onClick={onClose} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><FiX /></button></div>
+      {view.loading ? <p className="py-8 text-center text-sm text-slate-500">Loading page details...</p> : <dl className="grid gap-3 sm:grid-cols-2">{Object.entries(data).map(([key, value]) => <div key={key} className="min-w-0 rounded-lg bg-[#F4F4F4] p-3"><dt className="text-xs font-bold capitalize text-slate-500">{key.replaceAll("_", " ")}</dt><dd className="mt-1 break-words whitespace-pre-wrap text-sm text-slate-800">{value == null || value === "" ? "—" : typeof value === "object" ? JSON.stringify(value, null, 2) : String(value)}</dd></div>)}</dl>}
+    </div>
+  </div>;
+}

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { FiEye, FiEyeOff } from "react-icons/fi";
 import AuthLayout from "./AuthLayout";
@@ -97,9 +97,9 @@ export default function Login() {
             />
             Remember me
           </label>
-          <a href="#" className="text-accent font-medium hover:underline">
+          <Link to="/admin/forgot-password" className="text-accent font-medium hover:underline">
             Forgot password?
-          </a>
+          </Link>
         </div>
 
         <button
