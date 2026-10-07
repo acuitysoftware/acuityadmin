@@ -4,12 +4,12 @@ import react from "@vitejs/plugin-react";
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
   const apiTarget = new URL(
-    env.VITE_BASE_URL || "https://acuitynew.acuitysoftware.co.in/api"
+    env.VITE_BASE_URL || "https://acuitynew.acuitysoftware.co.in/"
   ).origin;
 
   return {
-    // Relative base path ensures assets are loaded correctly whether hosted at domain root or in /admin/ subfolder
-    base: "./",
+    // The admin app is deployed under /admin, including its assets.
+    base: "/admin/",
     plugins: [react()],
     server: {
       proxy: {

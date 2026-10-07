@@ -14,7 +14,7 @@ export default function AuthLayout({ active, title, subtitle, children, showSoci
         {/* Logo — use a dark/colour logo, since the card is white */}
         <div className="flex justify-center py-6">
           <img
-            src="/assets/images/acuity_logo_without_bg.png"
+            src={`${import.meta.env.BASE_URL}assets/images/acuity_logo_without_bg.png`}
             alt="Acuity logo"
             className="h-14 w-auto object-contain"
           />

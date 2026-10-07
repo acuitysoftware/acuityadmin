@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { toast } from "react-toastify";
 import { FiImage, FiLoader, FiSave, FiUploadCloud } from "react-icons/fi";
-import { getSiteSettings, updateSiteSettings } from "../../api/site";
+import { applySiteFavicon, getSiteSettings, updateSiteSettings } from "../../api/site";
 
 const EMPTY_SETTINGS = {
   email: "",
@@ -110,6 +110,7 @@ export default function SiteSettings() {
           copy_right_text: data.copy_right_text || "",
         });
         setImagePaths({ logo: data.logo_path || "", favicon: data.favicon_path || "" });
+        applySiteFavicon(data.favicon_path);
         setLoadError("");
       } catch (error) {
         if (!active) return;
@@ -153,6 +154,7 @@ export default function SiteSettings() {
         logo: returnedData.logo_path || current.logo,
         favicon: returnedData.favicon_path || current.favicon,
       }));
+      applySiteFavicon(returnedData.favicon_path || imagePaths.favicon);
       setImages({ logo: null, favicon: null });
       toast.success(response?.message || "Site settings updated.");
     } catch (error) {

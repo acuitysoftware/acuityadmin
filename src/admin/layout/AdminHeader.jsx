@@ -14,7 +14,7 @@ export default function AdminHeader({ company, onMenuClick }) {
           <HiMenuAlt2 />
         </button>
         <img
-          src="/assets/images/white_logo.png"
+          src={`${import.meta.env.BASE_URL}assets/images/white_logo.png`}
           alt={company?.name || "Acuity"}
           className="h-12 w-auto max-w-[180px] object-contain"
         />

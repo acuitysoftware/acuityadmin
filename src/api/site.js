@@ -1,5 +1,19 @@
 import apiClient from "./webApi.js";
 
+/** Apply the configured favicon to the current document. */
+export function applySiteFavicon(faviconUrl) {
+  if (!faviconUrl || typeof document === "undefined") return;
+
+  let icon = document.querySelector('link[rel="icon"]');
+  if (!icon) {
+    icon = document.createElement("link");
+    icon.rel = "icon";
+    document.head.appendChild(icon);
+  }
+
+  icon.href = faviconUrl;
+}
+
 /** Fetch site settings */
 export async function getSiteSettings(token) {
   try {

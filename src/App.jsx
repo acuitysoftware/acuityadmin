@@ -20,6 +20,7 @@ import HeaderManagement from "./admin/pages/menu-settings/HeaderManagement";
 import FooterManagement from "./admin/pages/menu-settings/FooterManagement";
 import ChangePassword from "./admin/pages/ChangePassword";
 import { DEFAULT_MENU, DEFAULT_COMPANY, DEFAULT_SECTIONS } from "./data/defaultData";
+import { applySiteFavicon, getSiteSettings } from "./api/site";
 
 const STORAGE_KEY = "acuity_site_config";
 const ADMIN_TOKEN_KEY = "admin_token";
@@ -51,6 +52,15 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
   }, [config]);
+
+  useEffect(() => {
+    const token = localStorage.getItem(ADMIN_TOKEN_KEY);
+    if (!token) return;
+
+    getSiteSettings(token)
+      .then((response) => applySiteFavicon(response?.data?.favicon_path))
+      .catch((error) => console.error("Load site favicon error:", error.response?.data ?? error.message));
+  }, []);
 
   const save = useCallback((next) => {
     setConfig((prev) => ({ ...prev, ...next }));
