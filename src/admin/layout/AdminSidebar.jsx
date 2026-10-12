@@ -11,6 +11,7 @@ import {
   FiLock,
   FiLogOut,
   FiMoreVertical,
+  FiShare2,
 } from "react-icons/fi";
 
 const PRIMARY_NAV = [
@@ -18,6 +19,7 @@ const PRIMARY_NAV = [
   { to: "/admin/cms-settings", label: "CMS Settings", Icon: FiGrid, hasSub: false },
   { to: "/admin/home-settings/clients", matchPrefix: "/admin/home-settings", label: "Home Settings", Icon: FiHome, hasSub: true, subCount: 10 },
   { to: "/admin/menu-settings/header", matchPrefix: "/admin/menu-settings", label: "Menu Settings", Icon: FiMenu, hasSub: true, subCount: 2 },
+  { to: "/admin/social-management", label: "Social Management", Icon: FiShare2, hasSub: false },
   { to: "/admin/change-password", matchPrefix: "/admin/change-password", label: "Profile", Icon: FiUser, hasSub: true, subCount: 1 },
 ];
 

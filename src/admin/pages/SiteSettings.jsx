@@ -149,14 +149,32 @@ export default function SiteSettings() {
       const response = await updateSiteSettings(token, payload);
       if (response?.status === false) throw new Error(response.message || "Could not update site settings.");
 
-      const returnedData = response?.data || {};
-      setImagePaths((current) => ({
-        logo: returnedData.logo_path || current.logo,
-        favicon: returnedData.favicon_path || current.favicon,
-      }));
-      applySiteFavicon(returnedData.favicon_path || imagePaths.favicon);
       setImages({ logo: null, favicon: null });
       toast.success(response?.message || "Site settings updated.");
+
+      try {
+        const refreshedResponse = await getSiteSettings(token);
+        if (!refreshedResponse?.status) {
+          throw new Error(refreshedResponse?.message || "Could not reload site settings.");
+        }
+        const refreshedData = refreshedResponse.data || {};
+        setSettings({
+          email: refreshedData.email || "",
+          phone: refreshedData.phone || "",
+          address: refreshedData.address || "",
+          footer_text: refreshedData.footer_text || "",
+          site_title: refreshedData.site_title || "",
+          copy_right_text: refreshedData.copy_right_text || "",
+        });
+        setImagePaths({
+          logo: refreshedData.logo_path || "",
+          favicon: refreshedData.favicon_path || "",
+        });
+        applySiteFavicon(refreshedData.favicon_path);
+      } catch (error) {
+        console.error("Reload site settings failed:", error.response?.data ?? error.message);
+        toast.error(`Settings saved, but the latest values could not be reloaded: ${error.message}`);
+      }
     } catch (error) {
       toast.error(error.response?.data?.message || error.message || "Could not update site settings.");
     } finally {

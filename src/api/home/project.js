@@ -74,7 +74,13 @@ export async function updateProject(token, data) {
     if (data.id !== undefined && data.id !== null) formData.append("id", data.id);
     if (data.title !== undefined && data.title !== null) formData.append("title", data.title);
     if (data.description !== undefined && data.description !== null) formData.append("description", data.description);
-    if (data.image && typeof File !== "undefined" && data.image instanceof File) formData.append("image", data.image);
+    if (data.image && typeof File !== "undefined" && data.image instanceof File) {
+      formData.append("image", data.image);
+    } else if (data.existingImage) {
+      formData.append("image", data.existingImage);
+    } else if (data.image) {
+      formData.append("image", data.image);
+    }
 
     const response = await apiClient.post("/api/admin/projects/update", formData, {
       headers: {

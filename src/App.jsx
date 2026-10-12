@@ -18,6 +18,7 @@ import HomeIndustries from "./admin/pages/home/HomeIndustries";
 import HomeTestimonials from "./admin/pages/home/HomeTestimonials";
 import HeaderManagement from "./admin/pages/menu-settings/HeaderManagement";
 import FooterManagement from "./admin/pages/menu-settings/FooterManagement";
+import SocialManagement from "./admin/pages/SocialManagement";
 import ChangePassword from "./admin/pages/ChangePassword";
 import { DEFAULT_MENU, DEFAULT_COMPANY, DEFAULT_SECTIONS } from "./data/defaultData";
 import { applySiteFavicon, getSiteSettings } from "./api/site";
@@ -103,6 +104,7 @@ export default function App() {
           <Route path="menu-settings/header" element={<HeaderManagement menu={menu} save={save} />} />
           <Route path="menu-settings/footer" element={<FooterManagement company={company} save={save} />} />
           
+          <Route path="social-management" element={<SocialManagement />} />
           <Route path="change-password" element={<ChangePassword />} />
         </Route>
       </Routes>

@@ -49,7 +49,13 @@ export default function ProjectModal({ isOpen, onClose, onSubmit, initial, loadi
     if (!initial && !image) nextErrors.image = "Project image is required.";
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length) return;
-    onSubmit({ id: initial?.id, title: title.trim(), description: description.trim(), image });
+    onSubmit({
+      id: initial?.id,
+      title: title.trim(),
+      description: description.trim(),
+      image,
+      existingImage: initial?.image || initial?.image_path || null,
+    });
   };
 
   return <>

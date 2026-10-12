@@ -58,6 +58,7 @@ export async function updateSiteSettings(token, data) {
       formData,
       {
         headers: {
+          "Content-Type": "multipart/form-data",
           Authorization: `Bearer ${token}`,
         },
       }
